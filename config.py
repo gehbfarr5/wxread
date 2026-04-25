@@ -7,8 +7,8 @@ import re
 默认使用本地值如果不存在从环境变量中获取值
 """
 
-# 阅读次数 默认40次/20分钟
-READ_NUM = int(os.getenv('READ_NUM') or 40)
+# 阅读次数 默认130次 = 65分钟
+READ_NUM = int(os.getenv('READ_NUM') or 130)
 # 需要推送时可选，可选pushplus、wxpusher、telegram
 PUSH_METHOD = "" or os.getenv('PUSH_METHOD')
 # pushplus推送时需填
@@ -27,13 +27,16 @@ curl_str = os.getenv('WXREAD_CURL_BASH')
 
 # headers、cookies是一个省略模版，本地或者docker部署时对应替换
 cookies = {
-    'RK': 'oxEY1bTnXf',
-    'ptcz': '53e3b35a9486dd63c4d06430b05aa169402117fc407dc5cc9329b41e59f62e2b',
-    'pac_uid': '0_e63870bcecc18',
-    'iip': '0',
-    '_qimei_uuid42': '183070d3135100ee797b08bc922054dc3062834291',
-    'wr_avatar': 'https%3A%2F%2Fthirdwx.qlogo.cn%2Fmmopen%2Fvi_32%2FeEOpSbFh2Mb1bUxMW9Y3FRPfXwWvOLaNlsjWIkcKeeNg6vlVS5kOVuhNKGQ1M8zaggLqMPmpE5qIUdqEXlQgYg%2F132',
+    'wr_localvid': '28832d2081600c230288079',
+    'wr_fp': '4204160285',
+    'wr_gid': '268237823',
     'wr_gender': '0',
+    'wr_avatar': 'https%3A%2F%2Fres.weread.qq.com%2Fwravatar%2FWV0025-cUHhOPomDQ1dyty6lOulue5%2F0',
+    'wr_vid': '369148464',
+    'wr_rt': 'web%40ckIgklCmYmK2safNeXA_AL',
+    'wr_name': 'booknerd',
+    'wr_ql': '0',
+    'wr_skey': '1FNVD13T',
 }
 
 headers = {

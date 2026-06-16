@@ -1,0 +1,13 @@
+{
+  "name": "wxread-telegram-worker",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "^3.99.0"
+  }
+}

@@ -22,6 +22,21 @@ COOKIE_DATA_VARIANTS = [{"rq": "%2Fweb%2Fbook%2Fread", "ql": False},{"rq": "%2Fw
 MOBILE_COOKIE_MAX_READ_NUM = int(os.getenv('WXREAD_MOBILE_COOKIE_MAX_READ_NUM') or 28)
 
 
+def login_recovery_message(reason):
+    return (
+        f"⚠️ 微信读书登录态已失效。\n\n"
+        f"原因：{reason}\n\n"
+        "🚀 请在 Telegram 发送 /wxread_login 启动登录恢复任务。\n"
+        "📱 恢复任务会发送微信读书二维码，请使用微信扫描。\n"
+        "⏳ 二维码有效期较短。\n\n"
+        "🧭 命令：\n"
+        "/wxread_login     🚀 启动登录恢复\n"
+        "/wxread_refresh  🔄 刷新二维码\n"
+        "/wxread_status   📊 查看状态\n"
+        "/wxread_cancel   ❌ 取消"
+    )
+
+
 def encode_data(data):
     """数据编码"""
     return '&'.join(f"{k}={urllib.parse.quote(str(data[k]), safe='')}" for k in sorted(data.keys()))
@@ -92,7 +107,7 @@ def refresh_cookie():
     else:
         ERROR_CODE = "无法获取新密钥或者 WXREAD_CURL_BASH 配置有误，终止运行。"
         logging.error(ERROR_CODE)
-        push(ERROR_CODE, PUSH_METHOD)
+        push(login_recovery_message(ERROR_CODE), PUSH_METHOD)
         raise Exception(ERROR_CODE)
 
 
@@ -122,7 +137,7 @@ def validate_cookie_mode():
         "65 分钟长期稳定运行需要重新使用 Chrome/网页版抓取带 wr_rt 的 /web/book/read cURL。"
     )
     logging.error(error)
-    push(error, PUSH_METHOD)
+    push(login_recovery_message(error), PUSH_METHOD)
     raise SystemExit(1)
 
 index = 1

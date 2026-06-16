@@ -51,20 +51,20 @@ class PushNotification:
         url = self.telegram_url.format(bot_token)
         payload = {"chat_id": chat_id, "text": content}
 
-        try:
-            response = requests.post(url, json=payload, proxies=self.proxies, timeout=30)
-            logger.info("Telegram 响应: %s", response.text)
-            response.raise_for_status()
-            return True
-        except Exception as exc:
-            logger.error("Telegram 代理发送失败: %s", exc)
+        for attempt in range(4):
             try:
-                response = requests.post(url, json=payload, timeout=30)
+                request_kwargs = {"json": payload, "timeout": 30}
+                if attempt == 0:
+                    request_kwargs["proxies"] = self.proxies
+                response = requests.post(url, **request_kwargs)
+                logger.info("Telegram 响应: %s", response.text)
                 response.raise_for_status()
                 return True
-            except Exception as inner_exc:
-                logger.error("Telegram 发送失败: %s", inner_exc)
-                return False
+            except Exception as exc:
+                logger.error("Telegram 发送失败: %s", exc)
+                if attempt < 3:
+                    time.sleep(2 + attempt * 3)
+        return False
 
     def push_wxpusher(self, content, spt):
         attempts = 5

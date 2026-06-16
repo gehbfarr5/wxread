@@ -68,6 +68,27 @@ python3 scripts/capture_wxread_curl.py \
 |------|-------|------|
 | `READ_NUM` | `130` | 阅读次数，130次 = 65分钟 |
 | `WXREAD_SECRET_ENVIRONMENT` | `AutoRead` | 可选。仅当 `WXREAD_CURL_BASH` 配在 Environment secret 时填写；不填则写 Repository secret |
+| `WXREAD_RECOVERY_CONTROL_URL` | Cloudflare Worker URL | 可选但推荐。用于 Telegram 命令触发登录恢复 |
+
+### 步骤 4.1：配置 Telegram 登录恢复
+
+当 `WXREAD_CURL_BASH` 失效时，可以通过 Telegram 触发二维码登录恢复。完整配置见 `LOGIN_RECOVERY.md`。
+
+新增配置：
+
+| Name | Value | 说明 |
+|------|-------|------|
+| `WXREAD_RECOVERY_CONTROL_TOKEN` | 随机长字符串 | **Secret**。GitHub workflow 和 Worker 之间的控制 token |
+| `WXREAD_RECOVERY_CONTROL_URL` | Worker URL | **Variable**。例如 `https://wxread-telegram-worker.example.workers.dev` |
+
+Telegram 命令：
+
+```text
+/wxread_login    启动登录恢复
+/wxread_refresh  刷新二维码
+/wxread_status   查看状态
+/wxread_cancel   取消
+```
 
 ### 步骤 5：启用 GitHub Action
 

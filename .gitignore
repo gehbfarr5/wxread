@@ -5,3 +5,8 @@ __pycache__/
 # Log files
 logs/
 *.log
+
+# Node/Cloudflare Worker
+node_modules/
+.wrangler/
+.dev.vars

@@ -38,6 +38,8 @@ python3 scripts/capture_wxread_curl.py --verify-local --update-github-secret --e
 
 如果需要 65 分钟稳定运行，必须使用网页版/Chrome 抓到的 cURL，并确认 Cookie 里有 `wr_rt`。手机 H5 登录态通常只有 `wr_vid` 和 `wr_skey`，不能稳定完成 `READ_NUM=130`。
 
+登录态失效后的 Telegram 恢复闭环见 [LOGIN_RECOVERY.md](LOGIN_RECOVERY.md)。配置完成后，在 Telegram 发送 `/wxread_login` 即可触发二维码登录恢复，扫码成功后会自动写回 `WXREAD_CURL_BASH` 并触发一次正常阅读任务。
+
 ### 方法一： GitHub Action部署运行（GitHub运行）
 
 

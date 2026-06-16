@@ -12,6 +12,26 @@
 
 **重要**：这是必需步骤！
 
+#### 推荐：半自动捕获器
+
+这个方式会启动一个独立 Chrome profile，不读取你的日常 Chrome Cookie 数据库。第一次需要在弹出的浏览器里登录微信读书；登录后 profile 会保留状态，后续只需要打开书并翻页触发一次请求。
+
+```bash
+python3 -m pip install -r requirements-capture.txt
+python3 -m playwright install chromium
+
+python3 scripts/capture_wxread_curl.py \
+  --verify-local \
+  --update-github-secret \
+  --environment AutoRead
+```
+
+脚本会等待你在浏览器中打开一本书并翻页，捕获 `https://weread.qq.com/web/book/read`，校验 Cookie 中包含 `wr_vid`、`wr_skey`、`wr_rt` 后写入 `/tmp/WXREAD_CURL_BASH.web`。只有包含 `wr_rt` 的 Web 登录态才能支撑 `READ_NUM=130` 的 65 分钟运行和后续自动续期。
+
+如果脚本一直等待，使用 `--debug-requests` 重跑。看到 `Web_EnterGuest` 或 `promoGuestId` 表示当前仍是游客态，需要在弹出的专用 Chrome 窗口里完成登录；没有 `/web/book/read` 表示还没有进入阅读页并翻页。
+
+#### 手动 Chrome DevTools
+
 1. 打开微信读书网页版：https://weread.qq.com/
 2. 登录你的账号
 3. 按 F12 打开开发者工具

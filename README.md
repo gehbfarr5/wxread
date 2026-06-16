@@ -26,6 +26,18 @@
 ```
 右键复制为Bash格式。
 
+也可以使用仓库内的半自动捕获器。它会启动独立 Chrome profile，登录后打开一本书并翻页即可自动捕获 `read` 请求，校验 Cookie 包含 `wr_rt` 后生成可用于 GitHub Actions 的 `WXREAD_CURL_BASH`：
+
+```bash
+python3 -m pip install -r requirements-capture.txt
+python3 -m playwright install chromium
+python3 scripts/capture_wxread_curl.py --verify-local --update-github-secret --environment AutoRead
+```
+
+如果脚本一直等待，可以追加 `--debug-requests` 查看是否仍是游客态首页请求，或是否已经触发 `/web/book/read`。
+
+如果需要 65 分钟稳定运行，必须使用网页版/Chrome 抓到的 cURL，并确认 Cookie 里有 `wr_rt`。手机 H5 登录态通常只有 `wr_vid` 和 `wr_skey`，不能稳定完成 `READ_NUM=130`。
+
 ### 方法一： GitHub Action部署运行（GitHub运行）
 
 

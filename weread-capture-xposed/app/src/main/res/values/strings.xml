@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">WeRead Capture</string>
+    <string name="xposed_description">Capture WeRead request cookies and build WXREAD_CURL_BASH.</string>
+</resources>

@@ -44,6 +44,7 @@ jobs:
     - name: Run deployment script
       env:
         WXREAD_CURL_BASH: ${{ secrets.WXREAD_CURL_BASH }}
+        WXREAD_UPDATED_CURL_FILE: .wxread_curl_updated
         PUSH_METHOD: ${{ secrets.PUSH_METHOD }}
         PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         WXPUSHER_SPT: ${{ secrets.WXPUSHER_SPT }}
@@ -54,6 +55,22 @@ jobs:
 
       run: |
         python main.py
+
+    - name: Persist refreshed WXREAD_CURL_BASH
+      if: ${{ success() && hashFiles('.wxread_curl_updated') != '' }}
+      env:
+        GH_TOKEN: ${{ secrets.GH_PAT_FOR_SECRET_UPDATE }}
+        WXREAD_SECRET_ENVIRONMENT: ${{ vars.WXREAD_SECRET_ENVIRONMENT }}
+      run: |
+        if [ -z "$GH_TOKEN" ]; then
+          echo "GH_PAT_FOR_SECRET_UPDATE is not configured; skip persisting WXREAD_CURL_BASH."
+          exit 0
+        fi
+        if [ -n "$WXREAD_SECRET_ENVIRONMENT" ]; then
+          gh secret set WXREAD_CURL_BASH --env "$WXREAD_SECRET_ENVIRONMENT" < .wxread_curl_updated
+        else
+          gh secret set WXREAD_CURL_BASH < .wxread_curl_updated
+        fi
 
   keepalive-job:
     name: Keepalive Workflow

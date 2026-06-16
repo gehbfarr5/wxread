@@ -1,5 +1,6 @@
 # main.py 主逻辑：包括字段拼接、模拟请求
 import json
+import os
 import time
 import random
 import logging
@@ -8,7 +9,7 @@ import requests
 import urllib.parse
 from push import push
 from log_utils import setup_logging
-from config import data, headers, cookies, READ_NUM, PUSH_METHOD, book, chapter
+from config import data, headers, cookies, READ_NUM, PUSH_METHOD, book, chapter, build_curl
 
 
 # 加密盐及其它默认值
@@ -47,9 +48,21 @@ def get_wr_skey():
             logging.warning(f"refresh_cookie 请求失败，payload={cookie_data}，原因：{exc}")
             continue
 
-        for cookie in response.headers.get('Set-Cookie', '').split(';'):
+        new_skey = response.cookies.get('wr_skey')
+        if new_skey:
+            return new_skey[:8]
+
+        set_cookie = response.headers.get('Set-Cookie', '')
+        for cookie in set_cookie.split(';'):
             if "wr_skey" in cookie:
                 return cookie.split('=')[-1][:8]
+
+        logging.warning(
+            "未从 refresh_cookie 响应中获得 wr_skey，payload=%s，status=%s，set-cookie=%s",
+            cookie_data,
+            response.status_code,
+            "present" if set_cookie else "missing",
+        )
     return None
 
 def fix_no_synckey():
@@ -57,12 +70,22 @@ def fix_no_synckey():
 
 refresh_print = setup_logging()
 
+def persist_refreshed_curl():
+    output_file = os.getenv('WXREAD_UPDATED_CURL_FILE')
+    if not output_file:
+        return
+    with open(output_file, 'w', encoding='utf-8') as handle:
+        handle.write(build_curl(headers, cookies))
+    logging.info("已生成更新后的 WXREAD_CURL_BASH 数据：%s", output_file)
+
+
 def refresh_cookie():
     logging.info("刷新 cookie")
     new_skey = get_wr_skey()
     if new_skey:
         cookies['wr_skey'] = new_skey
         logging.info(f"密钥刷新成功，新密钥：{new_skey}")
+        persist_refreshed_curl()
         logging.info("重新本次阅读。")
     else:
         ERROR_CODE = "无法获取新密钥或者 WXREAD_CURL_BASH 配置有误，终止运行。"
@@ -70,7 +93,6 @@ def refresh_cookie():
         push(ERROR_CODE, PUSH_METHOD)
         raise Exception(ERROR_CODE)
 
-refresh_cookie()
 index = 1
 lastTime = int(time.time()) - 30
 logging.info(f"一共需要阅读 {READ_NUM} 次。")

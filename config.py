@@ -1,6 +1,7 @@
 # config.py 自定义配置,包括阅读次数、推送token的填写
 import os
 import re
+import shlex
 
 """
 可修改区域
@@ -84,38 +85,109 @@ data = {
 }
 
 
+def _split_cookie_string(cookie_string):
+    result = {}
+    if not cookie_string:
+        return result
+    for cookie in cookie_string.split(';'):
+        cookie = cookie.strip()
+        if '=' not in cookie:
+            continue
+        key, value = cookie.split('=', 1)
+        result[key.strip()] = value.strip()
+    return result
+
+
+def _parse_curl_with_shlex(curl_command):
+    try:
+        tokens = shlex.split(curl_command)
+    except ValueError:
+        return None
+
+    headers_temp = {}
+    cookie_string = ''
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        value = None
+        if token in ('-H', '--header', '-b', '--cookie') and index + 1 < len(tokens):
+            value = tokens[index + 1]
+            index += 2
+        elif token.startswith('-H') and len(token) > 2:
+            value = token[2:].strip()
+            token = '-H'
+            index += 1
+        elif token.startswith('--header='):
+            value = token.split('=', 1)[1]
+            token = '--header'
+            index += 1
+        elif token.startswith('-b') and len(token) > 2:
+            value = token[2:].strip()
+            token = '-b'
+            index += 1
+        elif token.startswith('--cookie='):
+            value = token.split('=', 1)[1]
+            token = '--cookie'
+            index += 1
+        else:
+            index += 1
+            continue
+
+        if token in ('-H', '--header') and value and ':' in value:
+            key, header_value = value.split(':', 1)
+            key = key.strip()
+            header_value = header_value.strip()
+            if key.lower() == 'cookie':
+                cookie_string = header_value
+            else:
+                headers_temp[key] = header_value
+        elif token in ('-b', '--cookie') and value:
+            cookie_string = value
+
+    return headers_temp, _split_cookie_string(cookie_string)
+
+
 def convert(curl_command):
     """提取bash接口中的headers与cookies
     支持 -H 'Cookie: xxx' 和 -b 'xxx' 两种方式的cookie提取
     """
-    # 提取 headers
-    headers_temp = {}
-    for match in re.findall(r"-H '([^:]+): ([^']+)'", curl_command):
-        headers_temp[match[0]] = match[1]
+    parsed = _parse_curl_with_shlex(curl_command)
+    if parsed is not None:
+        return parsed
 
-    # 提取 cookies
-    cookies = {}
+    # 兼容旧解析路径
+    headers_temp = {}
+    for match in re.findall(r"-H ['\"]([^:]+): ([^'\"]+)['\"]", curl_command):
+        headers_temp[match[0]] = match[1]
     
     # 从 -H 'Cookie: xxx' 提取
     cookie_header = next((v for k, v in headers_temp.items() 
                          if k.lower() == 'cookie'), '')
     
     # 从 -b 'xxx' 提取
-    cookie_b = re.search(r"-b '([^']+)'", curl_command)
+    cookie_b = re.search(r"-b ['\"]([^'\"]+)['\"]", curl_command)
     cookie_string = cookie_b.group(1) if cookie_b else cookie_header
-    
-    # 解析 cookie 字符串
-    if cookie_string:
-        for cookie in cookie_string.split('; '):
-            if '=' in cookie:
-                key, value = cookie.split('=', 1)
-                cookies[key.strip()] = value.strip()
+    cookies = _split_cookie_string(cookie_string)
     
     # 移除 headers 中的 Cookie/cookie
     headers = {k: v for k, v in headers_temp.items() 
               if k.lower() != 'cookie'}
 
     return headers, cookies
+
+
+def build_curl(headers, cookies, url='https://weread.qq.com/web/book/read'):
+    header_parts = []
+    for key, value in headers.items():
+        if key.lower() == 'cookie':
+            continue
+        header_parts.append(f"-H {shlex.quote(f'{key}: {value}')}")
+    cookie_string = '; '.join(f"{key}={value}" for key, value in cookies.items())
+    cookie_part = f"-b {shlex.quote(cookie_string)}" if cookie_string else ''
+    parts = ['curl', shlex.quote(url), *header_parts]
+    if cookie_part:
+        parts.append(cookie_part)
+    return ' '.join(parts)
 
 
 headers, cookies = convert(curl_str) if curl_str else (headers, cookies)

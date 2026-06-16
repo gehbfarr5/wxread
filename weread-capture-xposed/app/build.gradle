@@ -1,0 +1,20 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.jin.weread.capture'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.jin.weread.capture'
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName '1.0.0'
+    }
+}
+
+dependencies {
+    compileOnly files('libs/api-82.jar')
+}

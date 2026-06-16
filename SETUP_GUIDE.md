@@ -35,6 +35,7 @@
 | Name | Value | 说明 |
 |------|-------|------|
 | `WXREAD_CURL_BASH` | 第2步复制的完整 cURL 命令 | **必需** |
+| `GH_PAT_FOR_SECRET_UPDATE` | GitHub fine-grained personal access token | 推荐，用于自动写回更新后的 `WXREAD_CURL_BASH`。写 Repository secret 需要 `Secrets: Read and write`；写 Environment secret 需要 `Environments: Read and write` |
 | `PUSH_METHOD` | `pushplus` 或 `wxpusher` 或 `telegram` 或 `serverchan` | 可选，推荐 pushplus |
 | `PUSHPLUS_TOKEN` | 你的 PushPlus token | 如果选择 pushplus |
 | `WXPUSHER_SPT` | 你的 WxPusher token | 如果选择 wxpusher |
@@ -46,6 +47,7 @@
 | Name | Value | 说明 |
 |------|-------|------|
 | `READ_NUM` | `130` | 阅读次数，130次 = 65分钟 |
+| `WXREAD_SECRET_ENVIRONMENT` | `AutoRead` | 可选。仅当 `WXREAD_CURL_BASH` 配在 Environment secret 时填写；不填则写 Repository secret |
 
 ### 步骤 5：启用 GitHub Action
 
@@ -141,7 +143,7 @@ docker exec -it wxread python /app/main.py
 ## 常见问题
 
 ### Q: Cookie 会过期吗？
-A: 会的，但脚本会自动刷新。如果刷新失败，重新抓包即可。
+A: 会的。脚本会尝试刷新 `wr_skey`，并在配置了 `GH_PAT_FOR_SECRET_UPDATE` 时自动写回 `WXREAD_CURL_BASH`。如果没有配置这个 GitHub token，本次运行内可以使用新密钥，但下一次 Action 仍会读取旧 secret。
 
 ### Q: 阅读时间不准确？
 A: 确保 config.py 中保留了 data 字段，默认读三体。
@@ -156,4 +158,3 @@ A: 检查 WXREAD_CURL_BASH 是否配置正确，确保是完整的 cURL 命令�
 - 新项目：`~/wxread/`
 - 备份：`~/weread_backup/`
 - 旧项目：`~/weread_old_20260425_120800/`
-

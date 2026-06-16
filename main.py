@@ -5,6 +5,7 @@ import time
 import random
 import logging
 import hashlib
+import sys
 import requests
 import urllib.parse
 from push import push
@@ -93,6 +94,22 @@ def refresh_cookie():
         push(ERROR_CODE, PUSH_METHOD)
         raise Exception(ERROR_CODE)
 
+
+def finish_mobile_cookie_window(index):
+    completed_count = max(index - 1, 0)
+    if 'wr_rt' in cookies or completed_count <= 0:
+        return False
+
+    message = (
+        "微信读书自动阅读已完成到当前移动端登录态可用上限。\n"
+        f"已完成：{completed_count}/{READ_NUM} 次，约 {completed_count * 0.5:.1f} 分钟。\n"
+        "当前 WXREAD_CURL_BASH 来自手机 H5 登录态，不包含 wr_rt，无法通过 Web renewal 接口续期。"
+    )
+    logging.info(message)
+    if PUSH_METHOD not in (None, ''):
+        push(message, PUSH_METHOD)
+    return True
+
 index = 1
 lastTime = int(time.time()) - 30
 logging.info(f"一共需要阅读 {READ_NUM} 次。")
@@ -126,6 +143,8 @@ while index <= READ_NUM:
             fix_no_synckey()
     else:
         logging.warning("cookie 已过期，尝试刷新...")
+        if finish_mobile_cookie_window(index):
+            sys.exit(0)
         refresh_cookie()
 
 logging.info("阅读脚本已完成。")

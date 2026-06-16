@@ -19,6 +19,7 @@ READ_URL = "https://weread.qq.com/web/book/read"
 RENEW_URL = "https://weread.qq.com/web/login/renewal"
 FIX_SYNCKEY_URL = "https://weread.qq.com/web/book/chapterInfos"
 COOKIE_DATA_VARIANTS = [{"rq": "%2Fweb%2Fbook%2Fread", "ql": False},{"rq": "%2Fweb%2Fbook%2Fread", "ql": True},{"rq": "%2Fweb%2Fbook%2Fread"},]
+MOBILE_COOKIE_MAX_READ_NUM = int(os.getenv('WXREAD_MOBILE_COOKIE_MAX_READ_NUM') or 28)
 
 
 def encode_data(data):
@@ -110,9 +111,24 @@ def finish_mobile_cookie_window(index):
         push(message, PUSH_METHOD)
     return True
 
+
+def validate_cookie_mode():
+    if 'wr_rt' in cookies or READ_NUM <= MOBILE_COOKIE_MAX_READ_NUM:
+        return
+
+    error = (
+        "当前 WXREAD_CURL_BASH 不包含 wr_rt，属于手机 H5 短时登录态，"
+        f"不能稳定完成 READ_NUM={READ_NUM}。"
+        "65 分钟长期稳定运行需要重新使用 Chrome/网页版抓取带 wr_rt 的 /web/book/read cURL。"
+    )
+    logging.error(error)
+    push(error, PUSH_METHOD)
+    raise SystemExit(1)
+
 index = 1
 lastTime = int(time.time()) - 30
 logging.info(f"一共需要阅读 {READ_NUM} 次。")
+validate_cookie_mode()
 
 while index <= READ_NUM:
     data.pop('s')

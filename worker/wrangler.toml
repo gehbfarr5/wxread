@@ -2,6 +2,11 @@ name = "wxread-telegram-worker"
 main = "src/index.js"
 compatibility_date = "2026-06-16"
 
+[vars]
+GITHUB_REPOSITORY = "gehbfarr5/wxread"
+GITHUB_REF = "main"
+GITHUB_LOGIN_WORKFLOW = "wxread-login.yml"
+
 [[kv_namespaces]]
 binding = "WXREAD_STATE"
-id = "replace-with-cloudflare-kv-namespace-id"
+id = "c6c88b1e51784beab51921568f85f8fa"

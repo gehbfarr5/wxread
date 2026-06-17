@@ -1,0 +1,71 @@
+name: deploy-worker
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-worker:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+
+      - name: Install Worker dependencies
+        working-directory: worker
+        run: npm ci
+
+      - name: Create Worker service
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler deploy
+
+      - name: Configure Worker secrets
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GITHUB_WORKFLOW_TOKEN: ${{ secrets.GH_PAT_FOR_SECRET_UPDATE }}
+          WXREAD_RECOVERY_CONTROL_TOKEN: ${{ secrets.WXREAD_RECOVERY_CONTROL_TOKEN }}
+        run: |
+          set -euo pipefail
+          WEBHOOK_SECRET="$(openssl rand -hex 32)"
+          printf "%s" "$TELEGRAM_BOT_TOKEN" | npx wrangler secret put TELEGRAM_BOT_TOKEN
+          printf "%s" "$TELEGRAM_CHAT_ID" | npx wrangler secret put TELEGRAM_CHAT_ID
+          printf "%s" "$GITHUB_WORKFLOW_TOKEN" | npx wrangler secret put GITHUB_TOKEN
+          printf "%s" "$WXREAD_RECOVERY_CONTROL_TOKEN" | npx wrangler secret put WXREAD_RECOVERY_CONTROL_TOKEN
+          printf "%s" "$WEBHOOK_SECRET" | npx wrangler secret put WEBHOOK_SECRET
+
+      - name: Deploy Worker and configure Telegram webhook
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT_FOR_SECRET_UPDATE }}
+          WXREAD_RECOVERY_CONTROL_TOKEN: ${{ secrets.WXREAD_RECOVERY_CONTROL_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx wrangler deploy 2>&1 | tee /tmp/wxread-worker-deploy.log
+          WORKER_URL="$(grep -Eo 'https://[^ ]+\.workers\.dev' /tmp/wxread-worker-deploy.log | head -1)"
+          if [ -z "$WORKER_URL" ]; then
+            echo "Could not determine Worker URL from wrangler output." >&2
+            exit 1
+          fi
+          gh variable set WXREAD_RECOVERY_CONTROL_URL --body "$WORKER_URL"
+          curl -fsS -X POST "$WORKER_URL/admin/set-webhook" \
+            -H "x-wxread-token: $WXREAD_RECOVERY_CONTROL_TOKEN"
+          curl -fsS -X POST "$WORKER_URL/admin/set-commands" \
+            -H "x-wxread-token: $WXREAD_RECOVERY_CONTROL_TOKEN"
+          curl -fsS "$WORKER_URL/api/state" \
+            -H "x-wxread-token: $WXREAD_RECOVERY_CONTROL_TOKEN"

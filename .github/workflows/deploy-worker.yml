@@ -63,9 +63,19 @@ jobs:
             exit 1
           fi
           gh variable set WXREAD_RECOVERY_CONTROL_URL --body "$WORKER_URL"
-          curl -fsS -X POST "$WORKER_URL/admin/set-webhook" \
-            -H "x-wxread-token: $WXREAD_RECOVERY_CONTROL_TOKEN"
-          curl -fsS -X POST "$WORKER_URL/admin/set-commands" \
-            -H "x-wxread-token: $WXREAD_RECOVERY_CONTROL_TOKEN"
-          curl -fsS "$WORKER_URL/api/state" \
-            -H "x-wxread-token: $WXREAD_RECOVERY_CONTROL_TOKEN"
+          request() {
+            local method="$1"
+            local url="$2"
+            local attempt
+            for attempt in $(seq 1 20); do
+              if curl -fsS -X "$method" "$url" \
+                -H "x-wxread-token: $WXREAD_RECOVERY_CONTROL_TOKEN"; then
+                return 0
+              fi
+              sleep 5
+            done
+            return 1
+          }
+          request POST "$WORKER_URL/admin/set-webhook"
+          request POST "$WORKER_URL/admin/set-commands"
+          request GET "$WORKER_URL/api/state"

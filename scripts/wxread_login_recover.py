@@ -151,10 +151,62 @@ def trigger_read_workflow(workflow):
     subprocess.run(["gh", "workflow", "run", workflow], env=env, check=True)
 
 
+def open_login_qr(page, start_url):
+    page.goto(start_url, wait_until="domcontentloaded")
+    page.wait_for_timeout(5000)
+    login = page.get_by_text("登录", exact=True)
+    if login.count() > 0 and login.first.is_visible():
+        login.first.click()
+        page.wait_for_timeout(5000)
+
+
+def get_qr_element(page):
+    page.wait_for_function(
+        """() => {
+            const candidates = Array.from(document.querySelectorAll('img,canvas'))
+                .map((el) => {
+                    const rect = el.getBoundingClientRect();
+                    const src = el.getAttribute('src') || '';
+                    const squareEnough = Math.abs(rect.width - rect.height) <= 20;
+                    const usefulSize = rect.width >= 120 && rect.height >= 120;
+                    const visible = rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0;
+                    const likelyQr = src.startsWith('data:image') || el.tagName === 'CANVAS';
+                    return { el, rect, visible, usefulSize, squareEnough, likelyQr };
+                })
+                .filter((item) => item.visible && item.usefulSize && item.squareEnough && item.likelyQr);
+            return candidates.length > 0;
+        }""",
+        timeout=20000,
+    )
+    handle = page.evaluate_handle(
+        """() => {
+            const candidates = Array.from(document.querySelectorAll('img,canvas'))
+                .map((el) => {
+                    const rect = el.getBoundingClientRect();
+                    const src = el.getAttribute('src') || '';
+                    const squareEnough = Math.abs(rect.width - rect.height) <= 20;
+                    const usefulSize = rect.width >= 120 && rect.height >= 120;
+                    const visible = rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0;
+                    const likelyQr = src.startsWith('data:image') || el.tagName === 'CANVAS';
+                    const score = (src.startsWith('data:image') ? 1000 : 0) + rect.width * rect.height;
+                    return { el, visible, usefulSize, squareEnough, likelyQr, score };
+                })
+                .filter((item) => item.visible && item.usefulSize && item.squareEnough && item.likelyQr)
+                .sort((a, b) => b.score - a.score);
+            return candidates[0].el;
+        }"""
+    )
+    element = handle.as_element()
+    if element is None:
+        raise RuntimeError("Could not locate WeRead login QR element")
+    return element
+
+
 def send_qr_snapshot(page, output_dir, sequence, caption):
     output_dir.mkdir(parents=True, exist_ok=True)
     path = output_dir / f"wxread-login-{sequence}.png"
-    page.screenshot(path=str(path), full_page=True)
+    qr = get_qr_element(page)
+    qr.screenshot(path=str(path))
     send_photo(path, caption=caption)
     return path
 
@@ -185,8 +237,7 @@ def main():
             browser = playwright.chromium.launch(headless=True)
             context = browser.new_context(locale="zh-CN")
             page = context.new_page()
-            page.goto(args.start_url, wait_until="domcontentloaded")
-            page.wait_for_timeout(5000)
+            open_login_qr(page, args.start_url)
 
             update_state(status="waiting_for_scan", lastMessage="二维码已生成，等待微信扫码。")
             send_qr_snapshot(page, args.artifact_dir, sequence, LOGIN_EXPIRED_MESSAGE)
@@ -202,8 +253,7 @@ def main():
                 if refresh_requested_at and refresh_requested_at != last_refresh_seen:
                     last_refresh_seen = refresh_requested_at
                     sequence += 1
-                    page.goto(args.start_url, wait_until="domcontentloaded")
-                    page.wait_for_timeout(5000)
+                    open_login_qr(page, args.start_url)
                     update_state(status="waiting_for_scan", lastMessage="二维码已刷新，等待微信扫码。")
                     send_qr_snapshot(
                         page,
